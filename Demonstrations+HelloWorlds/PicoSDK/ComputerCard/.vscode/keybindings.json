@@ -1,0 +1,8 @@
+[
+  {
+    "key": "ctrl+t",
+    "command": "workbench.action.tasks.runTask",
+    "args": "Build and Run waveshaper",
+    "when": "editorTextFocus"
+  }
+]
