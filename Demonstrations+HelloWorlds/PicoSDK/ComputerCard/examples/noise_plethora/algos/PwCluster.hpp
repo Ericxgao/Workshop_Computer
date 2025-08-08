@@ -6,7 +6,7 @@
 // Port of P_pwCluster: 6 pulse oscillators with clustered frequencies and global pulse width control
 class PwCluster {
 public:
-    static constexpr int MAX_OSCILLATORS = 6;
+    static constexpr int MAX_OSCILLATORS = 5;
 
     PwCluster()
     {
