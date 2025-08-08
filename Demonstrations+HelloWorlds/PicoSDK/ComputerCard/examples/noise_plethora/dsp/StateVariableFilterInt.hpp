@@ -53,6 +53,20 @@ public:
         q_ch_q15 = static_cast<int32_t>(q_ch * 32768.0f + 0.5f);
     }
 
+    // Convert frequency (Hz) to Q15 coefficient for audio-rate modulation
+    // Avoids floating-point trigonometry in the audio callback
+    static int32_t frequencyToFQ15(float freq_hz, float sample_rate = 48000.0f)
+    {
+        const float pi = 3.14159265358979323846f;
+        float f = 2.0f * std::sinf(pi * freq_hz / sample_rate);
+        if (!std::isfinite(f) || f < 0.0f) f = 0.0f;
+        if (f > 1.98f) f = 1.98f; // keep below 2 for stability
+        int32_t f_q15 = static_cast<int32_t>(f * 32768.0f + 0.5f);
+        if (f_q15 < 0) f_q15 = 0;
+        if (f_q15 > 65534) f_q15 = 65534; // ~just below 2.0 in Q15
+        return f_q15;
+    }
+
     void reset()
     {
         low_q15 = 0;
@@ -82,6 +96,46 @@ public:
 
         // band += f * high
         int32_t f_high = static_cast<int32_t>((static_cast<int64_t>(f_q15) * high_q15) >> 15);
+        band_q15 = sat_q15(band_q15 + f_high);
+
+        int32_t out_q15 = 0;
+        switch (mode)
+        {
+        case Mode::Lowpass:  out_q15 = low_q15;               break;
+        case Mode::Bandpass: out_q15 = band_q15;              break;
+        case Mode::Highpass: out_q15 = high_q15;              break;
+        case Mode::Notch:    out_q15 = sat_q15(high_q15 + low_q15); break;
+        }
+
+        // Back to 12-bit
+        int32_t y12 = out_q15 >> 4; // Q15 -> 12-bit
+        if (y12 < -2048) y12 = -2048;
+        if (y12 > 2047) y12 = 2047;
+        return static_cast<int16_t>(y12);
+    }
+
+    // Fast version with pre-calculated f coefficient for audio-rate modulation
+    // f_mod_q15: modulated f coefficient in Q15 format (0..~65534)
+    inline int16_t processWithFMod(int16_t x12, int32_t f_mod_q15)
+    {
+        // Convert input to Q15
+        int32_t x = static_cast<int32_t>(x12) << 4; // -2048..2047 -> ~-32768..32752
+
+        // Clamp f_mod_q15 to safe range
+        if (f_mod_q15 < 0) f_mod_q15 = 0;
+        if (f_mod_q15 > 65534) f_mod_q15 = 65534;
+
+        // Chamberlin SVF with modulated f coefficient
+        // low += f_mod * band
+        int32_t f_band = static_cast<int32_t>((static_cast<int64_t>(f_mod_q15) * band_q15) >> 15);
+        low_q15 = sat_q15(low_q15 + f_band);
+
+        // high = x - low - q * band
+        int32_t q_band = static_cast<int32_t>((static_cast<int64_t>(q_ch_q15) * band_q15) >> 15);
+        int32_t high_q15 = sat_q15(x - low_q15 - q_band);
+
+        // band += f_mod * high
+        int32_t f_high = static_cast<int32_t>((static_cast<int64_t>(f_mod_q15) * high_q15) >> 15);
         band_q15 = sat_q15(band_q15 + f_high);
 
         int32_t out_q15 = 0;

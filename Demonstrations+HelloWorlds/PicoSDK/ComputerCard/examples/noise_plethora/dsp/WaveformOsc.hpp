@@ -8,7 +8,7 @@
 
 class WaveformOscillator {
 public:
-    enum class Shape { Sine, Triangle, Saw, Square, SampleHold };
+    enum class Shape { Sine, Triangle, Saw, Square, SampleHold, Arbitrary };
 
     WaveformOscillator()
     {
@@ -41,6 +41,13 @@ public:
 
     // 0..32767 => 0..~1.0 duty; default 16384 ~= 0.5
     void setPulseWidthQ15(uint16_t pw_q15) { pulseWidthQ15 = pw_q15; }
+
+    // Provide a 256-sample arbitrary waveform table (Teensy-compatible length)
+    // Values are expected in int16_t range (-32768..32767). They will be scaled to 12-bit output.
+    void setArbitraryWaveform(const int16_t* table256)
+    {
+        arbTable = table256;
+    }
 
     void setFrequencyHz(float hz)
     {
@@ -129,6 +136,33 @@ public:
             s12 = sampleHoldValue;
             break;
         }
+        case Shape::Arbitrary:
+        {
+            // 256-point arbitrary table with linear interpolation
+            if (arbTable == nullptr)
+            {
+                // Fallback to square if not set
+                uint16_t ph_q15 = static_cast<uint16_t>(phaseAcc >> 17);
+                bool high = ph_q15 < pulseWidthQ15;
+                s12 = high ? 1024 : -1024;
+                break;
+            }
+            constexpr unsigned tableBits = 8;              // 256 entries
+            constexpr unsigned fracBits = 32 - tableBits;   // 24 fractional bits
+            uint32_t index = phaseAcc >> fracBits;          // top 8 bits
+            uint32_t frac = (phaseAcc & ((1u << fracBits) - 1));
+            uint32_t r16 = frac >> (fracBits - 16);         // to 16-bit fraction
+
+            int32_t s1 = static_cast<int32_t>(arbTable[index]);
+            int32_t s2 = static_cast<int32_t>(arbTable[(index + 1) & 0xFFu]);
+            int32_t interp16 = static_cast<int32_t>(((int64_t)s2 * r16 + (int64_t)s1 * (65536 - r16)) >> 16);
+            // Scale 16-bit to 12-bit by >>4 and clamp
+            int32_t v12 = interp16 >> 4; // approx -2048..2047 if table is full-scale
+            if (v12 < -2048) v12 = -2048;
+            if (v12 >  2047) v12 =  2047;
+            s12 = v12;
+            break;
+        }
         default:
         {
             // Fallback to square wave
@@ -183,6 +217,7 @@ private:
     uint16_t amplitudeQ12 = 4095;
     uint16_t pulseWidthQ15 = 16384;
     Shape shape = Shape::Sine;
+    const int16_t* arbTable = nullptr;
     
     // Sample and Hold state
     uint16_t sampleHoldLFSR = 1; // LFSR for random values

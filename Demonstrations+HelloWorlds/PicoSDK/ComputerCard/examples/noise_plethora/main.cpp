@@ -4,10 +4,14 @@
 #include "algos/CrossModRingSquare.hpp"
 #include "algos/CrossModRingSine.hpp"
 #include "algos/ClusterSaw.hpp"
+#include "algos/Atari.hpp"
+#include "algos/Basurilla.hpp"
+#include "algos/ArrayOnTheRocks.hpp"
+#include "algos/PwCluster.hpp"
 
 // Noise synthesis algorithms with CV control.
-// - Main knob: algorithm selection (6 algorithms: ResoNoise, RadioOhNo, 
-//   CrossModRingSquare, CrossModRingSine, ClusterSaw, ExistencesPain)
+// - Main knob: algorithm selection (7 algorithms: ResoNoise, RadioOhNo, 
+//   CrossModRingSquare, CrossModRingSine, ClusterSaw, ExistencesPain, Atari)
 // - CV1 input: X parameter control for selected algorithm  
 // - CV2 input: Y parameter control for selected algorithm
 
@@ -28,30 +32,49 @@ public:
         uint16_t kY = (cv2_raw + KnobVal(Knob::Y)); // CV2 controls Y parameter
 
         // Switch algorithms via Main knob position  
-        // 0..682: ResoNoise; 683..1365: RadioOhNo; 1366..2048: CrossModRingSquare; 
-        // 2049..2731: CrossModRingSine; 2732..3413: ClusterSaw; 3414..4095: ExistencesPain
+        // Order: ResoNoise, RadioOhNo, CrossModRingSquare, CrossModRingSine, ClusterSaw, Basurilla, PwCluster, ArrayOnTheRocks, Atari
         int16_t s = 0;
-        if (kMain < 683)
+        if (kMain < 586)
         {
             s = reso.nextSample(kX, kY);
         }
-        else if (kMain < 1366)
+        else if (kMain < 1171)
         {
             s = radio.nextSample(kX, kY);
         }
-        else if (kMain < 2049)
+        else if (kMain < 1756)
         {
             int32_t sample = xmodring.process(kX, kY);
             s = static_cast<int16_t>(sample);
         }
-        else if (kMain < 2732)
+        else if (kMain < 2341)
         {
             int32_t sample = xmodringsine.process(kX, kY);
             s = static_cast<int16_t>(sample);
         }
-        else if (kMain < 3414)
+        else if (kMain < 2926)
         {
             int32_t sample = clustersaw.process(kX, kY);
+            s = static_cast<int16_t>(sample);
+        }
+        else if (kMain < 3511)
+        {
+            int32_t sample = basurilla.process(kX, kY);
+            s = static_cast<int16_t>(sample);
+        }
+        else if (kMain < 3600)
+        {
+            int32_t sample = pwcluster.process(kX, kY);
+            s = static_cast<int16_t>(sample);
+        }
+        else if (kMain < 3800)
+        {
+            int32_t sample = arrayrocks.process(kX, kY);
+            s = static_cast<int16_t>(sample);
+        }
+        else
+        {
+            int32_t sample = atari.process(kX, kY);
             s = static_cast<int16_t>(sample);
         }
 
@@ -73,6 +96,10 @@ private:
     CrossModRingSquare xmodring;
     CrossModRingSine xmodringsine;
     ClusterSaw clustersaw;
+    Basurilla basurilla;
+    PwCluster pwcluster;
+    ArrayOnTheRocks arrayrocks;
+    Atari atari;
 };
 
 int main()
