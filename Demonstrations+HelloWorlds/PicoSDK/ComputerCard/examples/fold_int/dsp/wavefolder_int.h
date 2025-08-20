@@ -1,6 +1,19 @@
 #pragma once
 #include <cstdint>
 #include "fixedpoint_int.h"
+#include "ring_mod_analog_int.h"
+#include "ring_mod_digital_int.h"
+#include "ring_mod_blend_int.h"
+#include "xmod_xor_int.h"
+#include "comparator_int.h"
+#include "comparator8_int.h"
+#include "chebyshev_int.h"
+#include "comparator_cheby_int.h"
+#include "bitcrusher_int.h"
+#include "xmod_xfade_int.h"
+#include "xmod_nop_int.h"
+#include "freq_shifter_int.h"
+#include "vocoder_int.h"
 
 namespace cc_dsp {
 
@@ -23,6 +36,19 @@ inline int32_t fold_reflect_q15(int32_t x) {
 // Algorithms we can select between via the main knob
 enum class Algorithm : uint8_t {
     Fold = 0,
+    AnalogRing = 1,
+    DigitalRing = 2,
+    RingBlend = 3,
+    Xor = 4,
+    Comparator = 5,
+    Comparator8 = 6,
+    Chebyshev = 7,
+    ComparatorChebyshev = 8,
+    Bitcrusher = 9,
+    Xfade = 10,
+    Nop = 11,
+    FreqShifter = 12,
+    Vocoder = 13,
     Count
 };
 
@@ -51,6 +77,40 @@ inline int32_t process_algorithm_q15(Algorithm algo,
                                      int32_t p1_q15, int32_t p2_q15) {
     switch (algo) {
         case Algorithm::Fold:
+            return process_fold_q15(x1_q15, x2_q15, p1_q15, p2_q15);
+        case Algorithm::AnalogRing:
+            // Use x1 as modulator, x2 as carrier; parameter from p1
+            return process_analog_ring_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::DigitalRing:
+            // Digital ring uses both inputs; parameter from p1
+            return process_digital_ring_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::RingBlend:
+            // Blend: p1 blends, p2 drives sub-algorithms
+            return process_ring_blend_q15(x1_q15, x2_q15, p1_q15, p2_q15);
+        case Algorithm::Xor:
+            return process_xor_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::Comparator:
+            return process_comparator_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::Comparator8:
+            return process_comparator8_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::Chebyshev:
+            return process_chebyshev_q15(x1_q15, x2_q15, p1_q15, p2_q15);
+        case Algorithm::ComparatorChebyshev:
+            return process_comparator_cheby_q15(x1_q15, x2_q15, p1_q15, p2_q15);
+        case Algorithm::Bitcrusher:
+            return process_bitcrusher_q15(x1_q15, x2_q15, p1_q15, p2_q15);
+        case Algorithm::Xfade:
+            return process_xfade_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::Nop:
+            return process_nop_q15(x1_q15, x2_q15, p1_q15);
+        case Algorithm::FreqShifter: {
+            static FreqShifterState fs;
+            return process_freq_shifter_q15(fs, x1_q15, x2_q15, p1_q15, p2_q15);
+        }
+        case Algorithm::Vocoder: {
+            static VocoderState vs;
+            return process_vocoder_q15(vs, x1_q15, x2_q15, p1_q15, p2_q15);
+        }
         default:
             return process_fold_q15(x1_q15, x2_q15, p1_q15, p2_q15);
     }

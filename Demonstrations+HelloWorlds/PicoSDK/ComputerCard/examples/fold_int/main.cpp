@@ -34,10 +34,14 @@ public:
         int32_t p2_12 = static_cast<int32_t>(KnobVal(Knob::Y)) - 2048;
         int32_t p2_q15 = p2_12 << 4;
 
-        // Select algorithm with Main knob
-        // For now: 0..4095 maps to Algorithm::Fold only. Future algos can add thresholds.
-        Algorithm algo = Algorithm::Fold;
-        (void)algo; // silence unused warning for now
+        // Select algorithm with Main knob using evenly-split ranges
+        // Number of algos comes from Algorithm::Count
+        uint32_t main_knob = KnobVal(Knob::Main); // 0..4095
+        const int num_algos = static_cast<int>(Algorithm::Count);
+        const uint32_t segment = 4096u / static_cast<uint32_t>(num_algos ? num_algos : 1);
+        int algo_index = segment ? static_cast<int>(main_knob / segment) : 0;
+        if (algo_index >= num_algos) algo_index = num_algos - 1;
+        Algorithm algo = static_cast<Algorithm>(algo_index);
 
         // Apply selected algorithm
         int32_t y_q15 = process_algorithm_q15(algo, x1_q15, x2_q15, p1_q15, p2_q15);
@@ -55,8 +59,7 @@ public:
 };
 
 int main() {
-    // Optionally increase clock if desired; comment out to use default
-    // set_sys_clock_khz(200000, true);
+    set_sys_clock_khz(225000, true);
     FoldInt app;
     app.Run();
 }

@@ -7,6 +7,8 @@ namespace cc_dsp {
 constexpr int32_t Q15_ONE = 32768;   // 1.0 in Q15
 constexpr int32_t Q15_MAX = 32767;   // max positive in Q15
 constexpr int32_t Q15_MIN = -32768;  // min negative in Q15
+constexpr int32_t Q15_0P05 = 1638;   // ~0.05 in Q15
+constexpr int32_t Q15_0P8  = 26214;  // ~0.8 in Q15
 
 // Multiply two Q1.15 values with 64-bit intermediate
 inline int32_t mul_q15(int32_t a_q15, int32_t b_q15) {
